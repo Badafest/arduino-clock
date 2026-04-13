@@ -21,7 +21,7 @@ public:
 
     void update(uint8_t hour = 0, uint8_t minute = 0, bool delta = false);
 
-    const char *read();
+    const char *read(bool &changed);
 };
 
 #endif

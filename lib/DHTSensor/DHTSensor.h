@@ -9,8 +9,8 @@ struct DHTData_t
 {
     float temperature;
     float humidity;
-    char temperatureStr[9];
-    char humidityStr[9];
+    char temperatureStr[7];
+    char humidityStr[7];
 };
 
 class DHTSensor

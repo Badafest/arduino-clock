@@ -19,11 +19,12 @@ void Clock::update(uint8_t hour, uint8_t minute, bool delta)
     lastReadTimestamp_ = currentTimestamp();
 }
 
-const char *Clock::read()
+const char *Clock::read(bool &changed)
 {
     auto diffMinutes = currentTimestamp() - lastReadTimestamp_;
     if (diffMinutes < 1)
     {
+        changed = false;
         return timestr_;
     }
 
@@ -33,5 +34,6 @@ const char *Clock::read()
         static_cast<uint8_t>(totalMinutes / 60),
         static_cast<uint8_t>(totalMinutes % 60));
 
+    changed = true;
     return timestr_;
 };

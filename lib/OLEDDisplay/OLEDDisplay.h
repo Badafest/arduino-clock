@@ -19,7 +19,23 @@ public:
     // display methods
     OLEDDisplay &clear();
     OLEDDisplay &show();
-    OLEDDisplay &textWithTitle(const char *text, const char *title);
+
+    OLEDDisplay &text(
+        const char *text,
+        const int16_t x = 0,
+        const int16_t y = 0,
+        const uint8_t size = 1,
+        const uint16_t color = WHITE,
+        const uint16_t background = BLACK);
+
+    OLEDDisplay &bitmap(
+        const uint8_t *bitmap,
+        const int16_t x = 0,
+        const int16_t y = 0,
+        const int16_t w = 16,
+        const uint16_t h = 16,
+        const uint16_t color = WHITE,
+        const uint16_t background = BLACK);
 };
 
 #endif

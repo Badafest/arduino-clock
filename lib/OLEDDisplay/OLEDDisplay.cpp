@@ -8,6 +8,8 @@ bool OLEDDisplay::setup()
         return false;
     }
 
+    delay(2000);
+
     clear();
     show();
 
@@ -26,18 +28,31 @@ OLEDDisplay &OLEDDisplay::show()
     return *this;
 }
 
-OLEDDisplay &OLEDDisplay::textWithTitle(const char *text, const char *title)
+OLEDDisplay &OLEDDisplay::text(
+    const char *text,
+    const int16_t x,
+    const int16_t y,
+    const uint8_t size,
+    const uint16_t color,
+    const uint16_t background)
 {
-    display_.setTextSize(2);
-    display_.setTextColor(WHITE);
-    display_.setCursor(0, 0);
-    display_.println(title);
-    display_.display();
-
-    display_.setCursor(0, 28);
-    display_.setTextSize(3);
-    display_.setTextColor(WHITE);
+    display_.setCursor(x, y);
+    display_.setTextSize(size);
+    display_.setTextColor(color, background);
     display_.println(text);
 
+    return *this;
+}
+
+OLEDDisplay &OLEDDisplay::bitmap(
+    const uint8_t *bitmap,
+    const int16_t x,
+    const int16_t y,
+    const int16_t w,
+    const uint16_t h,
+    const uint16_t color,
+    const uint16_t background)
+{
+    display_.drawBitmap(x, y, bitmap, w, h, color, background);
     return *this;
 }
