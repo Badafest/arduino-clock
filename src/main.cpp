@@ -1,4 +1,3 @@
-#include <DHTSensor.h>
 #include <OLEDDisplay.h>
 #include <Clock.h>
 #include <Button.h>
@@ -7,17 +6,12 @@
 #define SETTINGS_WAIT_MS (5000)
 #define BUTTON_DELAY_MS (50)
 
-#define WEATHER_ICON_W (18)
-#define WEATHER_ICON_H (16)
+#define ALARM_ICON_W (16)
+#define ALARM_ICON_H (16)
 
-const unsigned char WEATHER_ICON[] PROGMEM = {
-    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x40, 0x00, 0x12,
-    0x80, 0x00, 0x0f, 0x00, 0x00, 0x0f, 0x78, 0x00, 0x0e, 0x7e, 0x00, 0x09, 0xff, 0x00, 0x17, 0xff,
-    0x80, 0x0f, 0xff, 0x80, 0x0f, 0xff, 0x00, 0x07, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-
-DHTSensor dhtSensor(
-    2 // DHT Pin
-);
+const unsigned char ALARM_ICON[] PROGMEM = {
+    0x00, 0x00, 0x00, 0x00, 0x10, 0x10, 0x23, 0x18, 0x53, 0xb8, 0x64, 0x54, 0x28, 0x10, 0x00, 0x00,
+    0x10, 0x20, 0x10, 0x20, 0x10, 0x10, 0x20, 0x10, 0x10, 0x30, 0x06, 0xc0, 0x03, 0x80, 0x00, 0x00};
 
 OLEDDisplay oledDisplay(
     128, // width
@@ -26,9 +20,14 @@ OLEDDisplay oledDisplay(
 );
 
 Clock clock(
-    13, // hour
-    57  // minute
+    21, // hour
+    20, // minute
+    3,  // alarm led pin
+    5   // alarm buzzer pin
 );
+
+Button modeButton(2, BUTTON_DELAY_MS);
+uint8_t lastModeButtonState = LOW;
 
 Button hourButton(8, BUTTON_DELAY_MS);
 uint8_t lastHourButtonState = LOW;
@@ -37,21 +36,26 @@ Button minuteButton(9, BUTTON_DELAY_MS);
 uint8_t lastMinuteButtonState = LOW;
 
 bool timeChanged = false;
+
 const char *timestr;
-DHTData_t data;
+const char *alarmstr;
+
+enum mode_t
+{
+  TIME_MODE,
+  ALARM_MODE
+};
+
+mode_t currentMode = TIME_MODE;
 
 void updateDisplay()
 {
-  char weatherstr[16] = {0};
-  sprintf(weatherstr, data.temperatureStr);
-  strcat(weatherstr, " - ");
-  strcat(weatherstr, data.humidityStr);
-
   oledDisplay
       .clear()
-      .bitmap(WEATHER_ICON, 6, 0, WEATHER_ICON_W, WEATHER_ICON_H)
-      .text(weatherstr, 8 + WEATHER_ICON_W, 6)
-      .text(timestr, 0, 28, 3)
+      .text(currentMode == TIME_MODE ? "TIME" : "ALARM", 2, 6)
+      .bitmap(ALARM_ICON, 65, 0, ALARM_ICON_W, ALARM_ICON_H)
+      .text(alarmstr, 68 + ALARM_ICON_W, 6, 1)
+      .text(timestr, 2, 28, 3)
       .show();
 }
 
@@ -61,20 +65,15 @@ void setup()
   digitalWrite(LED_BUILTIN, LOW);
 
   Serial.begin(9600);
+
+  modeButton.setup();
+  lastModeButtonState = modeButton.getState();
+
   hourButton.setup();
   lastHourButtonState = hourButton.getState();
 
   minuteButton.setup();
   lastMinuteButtonState = minuteButton.getState();
-
-  if (!dhtSensor.setup())
-  {
-    Serial.println("Failed to setup DHT sensor");
-    while (true)
-    {
-      // block the execution
-    }
-  }
 
   if (!oledDisplay.setup())
   {
@@ -85,8 +84,9 @@ void setup()
     }
   }
 
-  dhtSensor.read(&data);
   timestr = clock.read(timeChanged);
+
+  alarmstr = clock.setAlarm(0, 0, false, 0);
 
   updateDisplay();
 
@@ -95,17 +95,54 @@ void setup()
 
 void loop()
 {
-  bool dhtChanged = dhtSensor.read(&data);
-
   hourButton.loop();
   minuteButton.loop();
+  modeButton.loop();
+
+  bool modeChanged = modeButton.getState() != lastModeButtonState;
+  bool alarmOn = clock.checkAlarm();
+
+  if (modeChanged)
+  {
+    if (alarmOn)
+    {
+      clock.checkAlarm(true);
+      return;
+    }
+
+    switch (currentMode)
+    {
+    case TIME_MODE:
+      currentMode = ALARM_MODE;
+      break;
+
+    default:
+      currentMode = TIME_MODE;
+      break;
+    }
+
+    lastModeButtonState = modeButton.getState();
+
+    updateDisplay();
+
+    return;
+  }
 
   bool minuteChanged = minuteButton.getState() != lastMinuteButtonState;
   bool hourChanged = hourButton.getState() != lastHourButtonState;
 
   if (minuteChanged || hourChanged)
   {
-    clock.update(hourChanged, minuteChanged, true);
+
+    if (currentMode == ALARM_MODE)
+    {
+      clock.setAlarm(hourChanged, minuteChanged, true, 60000L);
+    }
+    else if (currentMode == TIME_MODE)
+    {
+      clock.update(hourChanged, minuteChanged, true);
+    }
+
     updateDisplay();
 
     lastMinuteButtonState = minuteButton.getState();
@@ -115,7 +152,8 @@ void loop()
   }
 
   timestr = clock.read(timeChanged);
-  if (timeChanged || dhtChanged)
+
+  if (timeChanged)
   {
     updateDisplay();
   }
